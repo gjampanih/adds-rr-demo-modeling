@@ -69,7 +69,7 @@ Gradient Boosted Quantile Regression for Wobbles : Pinball/Quantile loss with $\
 Gradient Boosted Regressor for TAA by Demographic Prediction:  Squared Error
 
 NOTE: Pinball Loss, $pinball(y, \hat{y})$ is defined as 
-$$pinball(y, \hat{y}) = \frac{1}{n_{samples}}\sum\limits_{i=0}^{n-1} \alpha(max(y - \hat{y}, 0)) + (1- \alpha)(max(\hat{y} - y, 0))$$
+$$pinball(y, \hat{y}) = \frac{1}{n_{samples}}\sum\limits_{i=0}^{n-1} \alpha(max(y_i - \hat{y_i}, 0)) + (1- \alpha)(max(\hat{y_i} - y_i, 0))$$
 
 ### Evaluation Metric
 Gradient Boosted Quantile Regression for Lower Threshold for Wobbles : Pinball/Quantile loss with $\alpha =0.05$
