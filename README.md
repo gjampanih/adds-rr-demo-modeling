@@ -62,16 +62,19 @@ quintile information (TAA quintiles was introduced in Nov. 2021)
 
 ### Loss Function (for estimation)
 
-Gradient Boosted Quantile Regression for Lower Threshold for Wobbles : Pinball/Quantile loss with $$\alpha =0.05$$
+Gradient Boosted Quantile Regression for Lower Threshold for Wobbles : Pinball/Quantile loss with $\alpha =0.05$
 
-Gradient Boosted Quantile Regression for Wobbles : Pinball/Quantile loss with $$\alpha =0.95$$
+Gradient Boosted Quantile Regression for Wobbles : Pinball/Quantile loss with $\alpha =0.95$
 
 Gradient Boosted Regressor for TAA by Demographic Prediction:  Squared Error
 
-### Evaluation Metric
-Gradient Boosted Quantile Regression for Lower Threshold for Wobbles : Pinball/Quantile loss with $$\alpha =0.05$$
+NOTE: Pinball Loss, $pinball(y, \hat{y})$ is defined as 
+$$pinball(y, \hat{y}) = \frac{1}{n_{samples}}\sum\limits_{i=0}^{n-1} \alpha(max(y - \hat{y}, 0)) + (1- \alpha)(max(\hat{y} - y, 0))$$
 
-Gradient Boosted Quantile Regression for Wobbles : Pinball/Quantile loss with $$\alpha =0.95$$
+### Evaluation Metric
+Gradient Boosted Quantile Regression for Lower Threshold for Wobbles : Pinball/Quantile loss with $\alpha =0.05$
+
+Gradient Boosted Quantile Regression for Wobbles : Pinball/Quantile loss with $\alpha =0.95$
 
 Gradient Boosted Regressor for TAA by Demographic Prediction:  Mean Absolute Percentage Error (MAPE).
 MAPE is chosen over Mean Squared Error (MSE) for greater interpretability.
@@ -88,7 +91,7 @@ For model calibration a test data set of 8 weeks of songs with callout research 
 Models are re-trained every 8 weeks to account for data drift.
 
 ## Reporting and Visualization
-Score gaps between pairs of demograhic groups are reported (for instance, Hispanic
+Score gaps between pairs of demographic groups are reported (for instance, Hispanic
 listeners scored 10% higher than White listeners for song XYZ)
 
 Smoothed pop score visualizations are generated for songs with sufficient data to facililiate
