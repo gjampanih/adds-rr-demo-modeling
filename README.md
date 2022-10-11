@@ -62,16 +62,16 @@ quintile information (TAA quintiles was introduced in Nov. 2021)
 
 ### Loss Function (for estimation)
 
-Gradient Boosted Quantile Regression for Lower Threshold for Wobbles : Pinball/Quantile loss with alpha =0.05
+Gradient Boosted Quantile Regression for Lower Threshold for Wobbles : Pinball/Quantile loss with $$\alpha =0.05$$
 
-Gradient Boosted Quantile Regression for Wobbles : Pinball/Quantile loss with alpha =0.95
+Gradient Boosted Quantile Regression for Wobbles : Pinball/Quantile loss with $$\alpha =0.95$$
 
 Gradient Boosted Regressor for TAA by Demographic Prediction:  Squared Error
 
 ### Evaluation Metric
-Gradient Boosted Quantile Regression for Lower Threshold for Wobbles : Pinball/Quantile loss with alpha =0.05
+Gradient Boosted Quantile Regression for Lower Threshold for Wobbles : Pinball/Quantile loss with $$\alpha =0.05$$
 
-Gradient Boosted Quantile Regression for Wobbles : Pinball/Quantile loss with alpha =0.95
+Gradient Boosted Quantile Regression for Wobbles : Pinball/Quantile loss with $$\alpha =0.95$$
 
 Gradient Boosted Regressor for TAA by Demographic Prediction:  Mean Absolute Percentage Error (MAPE).
 MAPE is chosen over Mean Squared Error (MSE) for greater interpretability.
