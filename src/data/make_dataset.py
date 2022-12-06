@@ -89,5 +89,5 @@ if __name__ == '__main__':
     config_dict = config.config_to_dict(config)
     print(config_dict)
     build_tables(
-        input_filepath='/Users/girishhanumantha/Documents/Github/adds-rr-demo-modeling/data/sql/features_parameter.sql',
+        input_filepath=make_input_path(os.getcwd()),
         format_code=config.format_codes[0].lower(), config_dict=config_dict, train_score_flag='train')

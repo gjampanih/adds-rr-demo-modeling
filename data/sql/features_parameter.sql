@@ -1,3 +1,5 @@
+-- noinspection SqlNoDataSourceInspectionForFile
+
 drop TABLE if exists adds_temp.demo_songs_{format_code} ;;
 drop TABLE if exists adds_temp.demo_song_subset_train_{format_code} ;;
 drop TABLE if exists adds_temp.demo_station_song_subset_train_{format_code};;
