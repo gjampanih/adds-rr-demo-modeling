@@ -61,16 +61,27 @@ def generate_cols(df, config_dict=None):
         func=(
             lambda x: config_dict['breakout_category'][x] if x in config_dict['breakout_category'].keys() else None))
 
+    # Drop misc Female breakout
+    drop_idx = df[df['segment'] == 'Female'].index
+    df.drop(drop_idx, inplace=True)
+
+    logging.info([i for i in df.columns if 'omt_co_flag' in i])
+
+    # generate cols
     id_cols = config_dict['id_cols']
     target_col = config_dict['target']
     exclude_cols = df.columns[df.columns.str.contains('|'.join(config_dict['exclude_cols_like']), regex=True)]
 
+
     cat_cols = set(df.columns[df.columns.str.contains('|'.join(config_dict['cat_cols_like']), regex=True)]) - set(
         id_cols) - set(exclude_cols)
+
     num_cols = set(df.select_dtypes(exclude=['object', 'datetime64']).columns) & set(
         df.columns[(df.columns.str.contains('|'.join(config_dict['num_cols_like']), regex=True))]) - set(id_cols) - set(
         cat_cols) - set(exclude_cols)
+
     feature_cols = list(set(list(num_cols) + list(cat_cols)))
+
 
     return id_cols, feature_cols, num_cols, cat_cols, target_col
 
@@ -99,6 +110,11 @@ def feature_create(format_code_lower=None, format_code_upper='None', config_dict
         df[c] = pd.to_numeric(df[c])
 
     df_features = pd.get_dummies(df[id_cols + feature_cols + list(target_col)], columns=cat_cols)
+
+    if train_score_flag == 'score':
+        df_features['omt_co_flag_OMT_CO'] = 0
+        df_features['omt_co_flag_OMT_only'] = 0
+
     filename = "rr_demo_features_" + train_score_flag + '_' + format_code_lower
     save_data(df_features, filename, config_dict, format_code_upper)
     logging.info("Feature creation complete for format[{}]".format(format_code_upper))

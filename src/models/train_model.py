@@ -72,9 +72,9 @@ def final_model_fitting(format_code, config_dict):
             logging.info('training scoring_date [{}] for format[{}]'.format(scoring_date, format_code_upper))
 
             input_sql_path = make_dataset.make_input_path(base_dir)
-            make_dataset.build_tables(input_sql_path, format_code_upper, config_dict, train_score_flag='train')
-            build_features.feature_create(format_code_lower=format_code_lower, format_code_upper=format_code_upper,
-                                          config_dict=config_dict, train_score_flag='train')
+            # make_dataset.build_tables(input_sql_path, format_code_upper, config_dict, train_score_flag='train')
+            # build_features.feature_create(format_code_lower=format_code_lower, format_code_upper=format_code_upper,
+            #                               config_dict=config_dict, train_score_flag='train')
 
             df = prep_data_for_training(config_dict, format_code_lower, scoring_date, base_dir,
                                         target_col)
@@ -82,13 +82,22 @@ def final_model_fitting(format_code, config_dict):
             df_grouped = group_data_by_demo_category(df)
 
             for grp in df_grouped.groups:
-                if ~pd.isna(grp) and len(df_grouped.get_group(grp)) > 0:
+                print(grp)
+                if ~pd.isna(grp) and len(df_grouped.get_group(grp)) > 0 and grp != 'Total':
                     df_grp = df_grouped.get_group(grp)
                     feature_cols = list(set(df_grp.columns) - set(config_dict['id_cols']) - set(target_col))
 
                     X = df_grp[feature_cols]
                     y = df_grp[config_dict['target']]
                     idx = X.dropna().index
+                    df_temp = pd.DataFrame(X.apply(lambda x: x.isnull().sum() / (1.0 * len(x))), columns=['perc_avl'])
+                    df_temp.sort_values(by=['perc_avl'], ascending=False, inplace=True)
+                    # logging.info(grp)
+                    # print(df_temp.reset_index().iloc[4].T)
+                    #
+                    # logging.info(len(X))
+                    # logging.info(len(idx))
+                    # continue
 
                     group_kfold = GroupKFold(n_splits=config_dict['cv'])
 

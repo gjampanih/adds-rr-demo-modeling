@@ -2,25 +2,22 @@ import logging
 import os
 import pickle
 from multiprocessing import Pool
-from sqlalchemy import text
+from time import perf_counter
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import shap
 from tenacity import retry, wait_exponential, stop_after_attempt
 
 from src import config
 from src.data import make_dataset
-from src.data.db_util import psycopg2_connect, elapsed_time_logging_string
+from src.data.db_util import elapsed_time_logging_string
 from src.data.db_util import postgresql_engine
 from src.features import build_features
 from src.mod import setup_logging_handler
-from time import perf_counter
 
 
 @retry(wait=wait_exponential(multiplier=1, min=5, max=10), stop=stop_after_attempt(10))
-def save_scores(df, table_name, format_code, scoring_date, config_dict):
+def save_scores(df, table_name, format_code, scoring_date, config_dict, grp):
     engine = postgresql_engine(config_dict['db_write_user'],
                                config_dict['db_write_password'],
                                config_dict['db_write_url'],
@@ -36,7 +33,7 @@ def save_scores(df, table_name, format_code, scoring_date, config_dict):
             connection.execute(
                 "delete from dbo." + table_name + " where format=\'" + format_code.upper() + "\' and week_dt >= \'" +
                 scoring_date[0] + "\' and week_dt <= \'" +
-                scoring_date[1] + "\'")
+                scoring_date[1] + "\'" + " and demo_category =\'" + grp + "\'")
         logging.info(
             "Saving [{}] new records for format[{}] in table[{}]...".format(len(df), format_code.upper(), table_name))
         df.to_sql(table_name, con=connection, index=False, if_exists='append', schema='dbo', method='multi',
@@ -73,17 +70,23 @@ def score_demo_category(df_score, demo_category, base_dir, format_code_lower, fo
         model_path = os.path.join(base_dir, 'models',
                                   "xgb_reg_model_" + demo_category + "_" + format_code_lower + ".pkl")
         final_model = pickle.load(open(os.path.join(model_path), "rb"))
-        cols_when_model_builds = final_model[0].get_booster().feature_names
-        col_list = list(set().union(df_score.columns, cols_when_model_builds))
+        cols_when_model_builds = final_model[0].feature_names_in_
+        # col_list = list(set().union(df_score.columns, cols_when_model_builds))
 
         idx = df_score[df_score['demo_category'] == demo_category][cols_when_model_builds].dropna().index
 
-        df_score.loc[idx] = df_score.loc[idx].reindex(columns=col_list, fill_value=np.nan)
-        df_score.loc[idx][['pop_predicted', 'wobble_lower_threshold', 'wobble_upper_threshold']] = [
-            final_model[model].predict(df_score.loc[idx][cols_when_model_builds]) for model in final_model]
-        df_score.loc[idx]['score_dt'] = pd.to_datetime("now").date().strftime('%Y-%m-%d')  # scoring_date
-        df_score.loc[idx]['format'] = format_code_upper  # format_code_lower
-        df_score.loc[idx]['model_version'] = config_dict['model_version']
+        # df_score.loc[idx] = df_score.loc[idx].reindex(columns=col_list, fill_value=np.nan)
+        df_score['pop_predicted'] = pd.DataFrame(final_model[0].predict(df_score.loc[idx][cols_when_model_builds]).flatten(), index=idx)
+        df_score['wobble_lower_threshold'] = pd.DataFrame(final_model[1].predict(
+            df_score.loc[idx][cols_when_model_builds]).flatten(), index=idx)
+        df_score['wobble_upper_threshold'] = pd.DataFrame(final_model[2].predict(
+            df_score.loc[idx][cols_when_model_builds]).flatten(), index=idx)
+
+        df_score['score_dt'] = pd.to_datetime("now").date().strftime('%Y-%m-%d')  # scoring_date
+        df_score['format'] = format_code_upper  # format_code_lower
+        df_score['model_version'] = config_dict['model_version']
+
+
     except FileNotFoundError:
         logging.info('File not found')
 
@@ -106,25 +109,28 @@ def prediction_output(format_code, config_dict):
 
         input_sql_path = make_dataset.make_input_path(base_dir)
         #make_dataset.build_tables(input_sql_path, format_code_upper, config_dict, train_score_flag='score')
-        #build_features.feature_create(format_code_lower=format_code_lower, format_code_upper=format_code_upper,
-                                      #config_dict=config_dict, train_score_flag='score')
+        # build_features.feature_create(format_code_lower=format_code_lower, format_code_upper=format_code_upper,
+        #                               config_dict=config_dict, train_score_flag='score')
 
         df_score = prep_data_for_scoring(base_dir, format_code_lower, scoring_date)
         df_score_grouped = df_score.groupby(['demo_category'])
 
         for grp in df_score_grouped.groups:
-            if df_score_grouped.get_group(grp).shape[0] > 0:
-                score_demo_category(df_score, grp, base_dir, format_code_lower, format_code_upper, config_dict)
+            if ~pd.isna(grp) and len(df_score_grouped.get_group(grp)) > 0 and grp != 'Total':
+                df_temp = df_score_grouped.get_group(grp)
+                if df_score_grouped.get_group(grp).shape[0] > 0:
+                    score_demo_category(df_temp, grp, base_dir, format_code_lower, format_code_upper, config_dict)
 
+            logging.info(list(df_score.columns))
             # save scores to DB
             save_scores(
-                df_score[config_dict['id_cols'][:-1] + config_dict['target'] + ['format', 'pop_predicted',
+                df_temp[config_dict['id_cols'][:-1] + config_dict['target'] + ['format', 'pop_predicted',
                                                                                 'wobble_lower_threshold',
                                                                                 'wobble_upper_threshold', 'score_dt',
                                                                                 'model_version']],
                 "rr_demo_scores_adds",
                 format_code_lower,
-                [scoring_date, curr_date], config_dict)
+                [scoring_date, curr_date], config_dict, grp)
             logging.info("[ADDS-NOTIFY] Research Response scoring for format [{}] complete.".format(
                 format_code_lower.upper()))
 
@@ -132,21 +138,22 @@ def prediction_output(format_code, config_dict):
                 format_code_lower.upper()))
 
             # save copies locally
-            df_score[
-                config_dict['id_cols'][:-1] + config_dict['target'] + ['format', 'stn_tier_desc',
-                                                                       'score_dt', 'model_version', 'taa_quintile',
-                                                                       'gcr_adj']].to_pickle(
-                os.path.join(base_dir, "data", "processed", "rr_scores" + "_" + format_code_lower + ".pkl"), protocol=4)
-
-            build_features.delete_temp_tables("adds_temp", format_code_lower, config_dict)
-
-            stop = perf_counter()
-            logging.info("[ADDS-NOTIFY] Research Response scoring explainer for format [{}] complete".format(
-                format_code_lower.upper()))
-            logging.info('Format[{}] complete.  {}'.format(format_code, elapsed_time_logging_string(start, stop)))
+            df_temp[
+                config_dict['id_cols'][:-1] + config_dict['target'] + ['format', 'pop_predicted',
+                                                                                'wobble_lower_threshold',
+                                                                                'wobble_upper_threshold', 'score_dt',
+                                                                                'model_version']].to_pickle(
+                os.path.join(base_dir, "data", "processed", "rr_scores" + "_" + format_code_lower + "_" + grp + ".pkl"), protocol=4)
 
         else:
             logging.info("[ERROR] Empty Scoring data for format [{}]".format(format_code_lower.upper()))
+
+        build_features.delete_temp_tables("adds_temp", format_code_lower, config_dict)
+
+        stop = perf_counter()
+        logging.info("[ADDS-NOTIFY] Research Response scoring explainer for format [{}] complete".format(
+            format_code_lower.upper()))
+        logging.info('Format[{}] complete.  {}'.format(format_code, elapsed_time_logging_string(start, stop)))
     except:
         logging.exception("Uncaught exception for format[{}]:".format(format_code))
         logging.error(

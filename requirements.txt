@@ -16,3 +16,4 @@ pandas_datareader==0.10.0
 xgboost==1.2.1
 census==0.8.19
 shap==0.35.0
+openpyxl
