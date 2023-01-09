@@ -72,7 +72,6 @@ def generate_cols(df, config_dict=None):
     target_col = config_dict['target']
     exclude_cols = df.columns[df.columns.str.contains('|'.join(config_dict['exclude_cols_like']), regex=True)]
 
-
     cat_cols = set(df.columns[df.columns.str.contains('|'.join(config_dict['cat_cols_like']), regex=True)]) - set(
         id_cols) - set(exclude_cols)
 
@@ -81,7 +80,6 @@ def generate_cols(df, config_dict=None):
         cat_cols) - set(exclude_cols)
 
     feature_cols = list(set(list(num_cols) + list(cat_cols)))
-
 
     return id_cols, feature_cols, num_cols, cat_cols, target_col
 
@@ -104,7 +102,7 @@ def feature_create(format_code_lower=None, format_code_upper='None', config_dict
     logging.info("Finished reading data for format[{}]".format(format_code_upper))
     df.fillna(np.nan, inplace=True)  # fill None values
 
-    id_cols, feature_cols, num_cols, cat_cols,  target_col = generate_cols(df, config_dict)
+    id_cols, feature_cols, num_cols, cat_cols, target_col = generate_cols(df, config_dict)
 
     for c in num_cols:
         df[c] = pd.to_numeric(df[c])
