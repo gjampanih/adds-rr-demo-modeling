@@ -1,5 +1,5 @@
 -- noinspection SqlNoDataSourceInspectionForFile
-
+/*
 drop TABLE if exists adds_temp.demo_songs_{format_code} ;;
 drop TABLE if exists adds_temp.demo_song_subset_train_{format_code} ;;
 drop TABLE if exists adds_temp.demo_station_song_subset_train_{format_code};;
@@ -38,7 +38,15 @@ create table adds_temp.demo_songs_{format_code} as (
 create table adds_temp.demo_song_subset_train_{format_code} as (
 
 select distinct mediabase_id, ds.artist_name, a.artist_id, song_name
+
+from from data.cmm c
+/*
+(
+Select c.cmm_station_calls, c.song_id
 from data.cmm c
+group by 1, 2
+having count(c.test_date) >= '{min_station_tests}' # atleast two station tests) as c
+*/
 
 join data.stations_v st
 on st.call_letters = c.cmm_station_calls
@@ -104,7 +112,17 @@ create table adds_temp.demo_station_song_subset_train_{format_code} as (
 
 select distinct cmm_station_calls, mediabase_id, market_name,
 ds.artist_name, ds.song_name, ds.song_release_date, a.artist_id,
-first_spin_thresh_week, "GRC"  from data.cmm c
+first_spin_thresh_week, "GRC"
+
+from data.cmm c
+/*
+(
+Select c.cmm_station_calls, c.song_id
+from data.cmm c
+group by 1, 2
+having count(c.test_date) >= 2 # atleast two station tests) as c
+ */
+
 join data.stations_v st
 on st.call_letters = c.cmm_station_calls
 
@@ -597,6 +615,7 @@ where a1.pop_all < 150
 
 ALTER TABLE adds_temp.demo_cm_{format_code}  ADD PRIMARY KEY ( cmm_station_calls, mediabase_id, breakout_id, week_dt);;
 
+
 -- Adjusted GCR logic (implemented early 2021)
 create table adds_temp.demo_gcr_{format_code} as
     (select a.mediabase_id,
@@ -646,15 +665,15 @@ create table adds_temp.demo_gcr_{format_code} as
     join adds_temp.demo_song_subset_train_{format_code}  sss
         on a.mediabase_id = sss.mediabase_id
 
-) ;;
+)
 
-ALTER TABLE adds_temp.demo_gcr_{format_code}   ADD PRIMARY KEY (mediabase_id,week_dt);;
+ALTER TABLE adds_temp.demo_gcr_{format_code}   ADD PRIMARY KEY (mediabase_id,week_dt)
 
 
 -- temp demo table for rr features
 create table adds_temp.demo_rr_temp_{format_code} as
 (select
-coalesce(mb."SongID", gcr.mediabase_id) as mediabase_id,
+mb.mediabase_id,
 mb.station_id,
 mb."C_Let",
 mb.week_dt,
@@ -669,10 +688,8 @@ cm.total_respondents,
 cm.omt_respondents,
 cm.callout_respondents,
 
-max(gcr_num) over (partition by coalesce(mb."SongID", gcr.mediabase_id)) as max_gcr_num,
-min(gcr_num) over (partition by coalesce(mb."SongID", gcr.mediabase_id)) as min_gcr_num,
-GapFill(gcr.gcr) over (partition by coalesce(mb."SongID", gcr.mediabase_id)  order by coalesce(mb.week_dt, gcr.week_dt)  )  as gcr,
-GapFill(gcr.gcr_adj) over (partition by coalesce(mb."SongID", gcr.mediabase_id)  order by coalesce(mb.week_dt, gcr.week_dt)  )  as gcr_adj,
+rsafp.gcr  as gcr,
+COALESCE(rsafp.gcr, rsafp.gcr_adj)  as gcr_adj,
 
 cardinality(regexp_split_to_array(regexp_replace(upper(mb."FirstLast"), '[^[A-Z0-9\/\s]', '','g') , '(F\/.*)|(W\/.*)|[\/]')) as artist_count,
 cardinality(regexp_split_to_array(upper(mb."FirstLast"), '(F\/.\S*)|(W\/.\S*)')) as feat_artist,
@@ -712,12 +729,12 @@ std_pop_prior,
 med_pop_prior,
 mr_pop_prior,
 mr_pop_prior_date,
-max(max_pop_prior_unv) over (partition by coalesce(mb."SongID", gcr.mediabase_id) , brkts.breakout_id , mb.week_dt ) as max_pop_prior_unv,
-max(min_pop_prior_unv) over (partition by coalesce(mb."SongID", gcr.mediabase_id) , brkts.breakout_id , mb.week_dt ) as min_pop_prior_unv,
-max(mean_pop_prior_unv) over (partition by coalesce(mb."SongID", gcr.mediabase_id) , brkts.breakout_id , mb.week_dt  ) as mean_pop_prior_unv,
-max(count_pop_prior_unv) over (partition by coalesce(mb."SongID", gcr.mediabase_id) , brkts.breakout_id , mb.week_dt   ) as count_pop_prior_unv,
-max(mr_pop_prior_unv) over (partition by coalesce(mb."SongID", gcr.mediabase_id) , brkts.breakout_id , mb.week_dt  ) as mr_pop_prior_unv,
-max(mr_pop_prior_unv_date) over (partition by coalesce(mb."SongID", gcr.mediabase_id) , brkts.breakout_id , mb.week_dt  ) as mr_pop_prior_unv_date,
+max(max_pop_prior_unv) over (partition by coalesce(mb."SongID", mb.mediabase_id) , brkts.breakout_id , mb.week_dt ) as max_pop_prior_unv,
+max(min_pop_prior_unv) over (partition by coalesce(mb."SongID", mb.mediabase_id) , brkts.breakout_id , mb.week_dt ) as min_pop_prior_unv,
+max(mean_pop_prior_unv) over (partition by coalesce(mb."SongID", mb.mediabase_id) , brkts.breakout_id , mb.week_dt  ) as mean_pop_prior_unv,
+max(count_pop_prior_unv) over (partition by coalesce(mb."SongID", mb.mediabase_id) , brkts.breakout_id , mb.week_dt   ) as count_pop_prior_unv,
+max(mr_pop_prior_unv) over (partition by coalesce(mb."SongID", mb.mediabase_id) , brkts.breakout_id , mb.week_dt  ) as mr_pop_prior_unv,
+max(mr_pop_prior_unv_date) over (partition by coalesce(mb."SongID", mb.mediabase_id) , brkts.breakout_id , mb.week_dt  ) as mr_pop_prior_unv_date,
 
 
 max_pop_artist_prior,
@@ -774,13 +791,13 @@ and rsafp.station_id = mb.station_id
 and rsafp.week_dt = mb.week_dt
 
 --*****************************************************************************************************************************************
-
+/*
 --left
 full outer
 join adds_temp.demo_gcr_{format_code} gcr
 on gcr.mediabase_id = mb."SongID"
 and gcr."week_dt" = mb."week_dt"
-
+*/
 --****************************************************************************************************************************************
 where mb.station_id is not null
 --and mb.mediabase_id = 1179699
@@ -806,6 +823,7 @@ DELETE
 from adds_temp.demo_rr_temp_{format_code} AS drth
 where station_id is null
 ;;
+ */
 
 -- final feature table
 create table adds_temp.demo_rr_features_{format_code} as
@@ -824,17 +842,8 @@ breakout_name,
 total_respondents,
 omt_respondents,
 callout_respondents,
-
-
-case when gcr isnull and min_gcr_num=0 then 'C'
-when gcr isnull and min_gcr_num=1 then 'C'
-when gcr isnull and min_gcr_num=2 then 'R'
-else gcr end gcr,
-
-case when gcr_adj isnull and min_gcr_num=0 then 'C'
-when gcr_adj isnull and min_gcr_num=1 then 'C'
-when gcr_adj isnull and min_gcr_num=2 then 'R'
-else gcr_adj end gcr_adj,
+gcr,
+gcr_adj,
 
 artist_count,
 feat_artist,
@@ -884,6 +893,13 @@ taa_quintile,
 (week_dt -max(week_dt) filter(where spins_total>0) over (partition by mediabase_id, breakout_id order by week_dt ROWS BETWEEN unbounded preceding AND 1 preceding))/7.0 as song_weeks_since_last_spins,
 (week_dt -max(week_dt) filter(where spins_total>0) over (partition by mediabase_id, station_id, breakout_id order by week_dt ROWS BETWEEN unbounded preceding AND 1 preceding))/7.0 as song_station_weeks_since_last_spins,
 
+--more two station tests
+-- edited to exclude omts for currents,i.e., two callouts at two station for currents
+case when ((max(station_id) filter(where case when gcr_adj = 'C' then pop_co else pop_all end notnull) over (partition by mediabase_id, breakout_id order by week_dt))
+- (min(station_id) filter(where case when
+gcr_adj = 'C' then pop_co else pop_all end notnull) over (partition by mediabase_id, breakout_id order by week_dt))) > 0 then 1 else 0 end as station_test_1_plus,
+case when max(station_id) filter(where pop_all notnull) over (partition by mediabase_id, breakout_id order by week_dt) = station_id then 1 else 0 end as station_test_1_id,
+
 
 --Previous Spins
 max(spins_non_on) over (partition by mediabase_id, station_id, breakout_id order by week_dt ROWS BETWEEN 1 preceding AND 1 preceding ) as mr_spins_song_station_prior,
@@ -922,35 +938,35 @@ max(market_spins) over (partition by mediabase_id, station_id, breakout_id order
 --Percent Spin Change
 (sum(spins_non_on) over (partition by mediabase_id, station_id, breakout_id, week_dt  ) -
 sum(spins_non_on) over (partition by mediabase_id, station_id, breakout_id order by week_dt ROWS BETWEEN 1 preceding AND 1 preceding ))/
-nullif(sum(spins_non_on) over (partition by mediabase_id, station_id, breakout_id order by week_dt ROWS BETWEEN 1 preceding AND 1 preceding ),0) as perc_diff_spins_song_station_prior,
+nullif(1.0*sum(spins_non_on) over (partition by mediabase_id, station_id, breakout_id order by week_dt ROWS BETWEEN 1 preceding AND 1 preceding ),0) as perc_diff_spins_song_station_prior,
 
 (sum(spins_non_on) over (partition by mediabase_id, "Market_Name" , breakout_id, week_dt  )-
 sum(spins_non_on) over (partition by mediabase_id, "Market_Name", breakout_id order by week_dt ROWS BETWEEN 1 preceding AND 1 preceding ))/
-nullif(sum(spins_non_on) over (partition by mediabase_id, "Market_Name", breakout_id order by week_dt ROWS BETWEEN 1 preceding AND 1 preceding ),0)
+nullif(1.0*sum(spins_non_on) over (partition by mediabase_id, "Market_Name", breakout_id order by week_dt ROWS BETWEEN 1 preceding AND 1 preceding ),0)
 as perc_diff_spins_song_market_prior,
 
 (sum(spins_non_on) over (partition by artist_id, station_id , breakout_id, week_dt ) -
 sum(spins_non_on) over (partition by artist_id, station_id, breakout_id order by week_dt ROWS BETWEEN 1 preceding AND 1 preceding ))/
-nullif(sum(spins_non_on) over (partition by artist_id, breakout_id, station_id order by week_dt ROWS BETWEEN 1 preceding AND 1 preceding ),0)
+nullif(1.0*sum(spins_non_on) over (partition by artist_id, breakout_id, station_id order by week_dt ROWS BETWEEN 1 preceding AND 1 preceding ),0)
 as perc_diff_spins_artist_station_prior,
 
 
 (max(song_univ_spins) over (partition by mediabase_id, station_id, breakout_id, week_dt  ) -
 max(song_univ_spins) over (partition by mediabase_id, station_id, breakout_id order by week_dt ROWS BETWEEN 1 preceding AND 1 preceding ))/
-nullif(max(song_univ_spins) over (partition by mediabase_id, breakout_id, station_id order by week_dt ROWS BETWEEN 1 preceding AND 1 preceding ),0) as per_diff_song_univ_spins_prior,
+nullif(1.0*max(song_univ_spins) over (partition by mediabase_id, breakout_id, station_id order by week_dt ROWS BETWEEN 1 preceding AND 1 preceding ),0) as per_diff_song_univ_spins_prior,
 
 (max(artist_univ_spins) over (partition by mediabase_id, station_id, week_dt  ) -
 max(artist_univ_spins) over (partition by mediabase_id, station_id order by week_dt ROWS BETWEEN 1 preceding AND 1 preceding ))/
-nullif(max(artist_univ_spins) over (partition by mediabase_id, station_id order by week_dt ROWS BETWEEN 1 preceding AND 1 preceding ),0) as per_diff_artist_univ_spins_prior,
+nullif(1.0*max(artist_univ_spins) over (partition by mediabase_id, station_id order by week_dt ROWS BETWEEN 1 preceding AND 1 preceding ),0) as per_diff_artist_univ_spins_prior,
 
 (max(market_artist_spins) over (partition by mediabase_id, station_id, breakout_id, week_dt  ) -
 max(market_artist_spins) over (partition by mediabase_id, station_id, breakout_id order by week_dt ROWS BETWEEN 1 preceding AND 1 preceding ))/
-nullif(max(market_artist_spins) over (partition by mediabase_id, station_id, breakout_id order by week_dt ROWS BETWEEN 1 preceding AND 1 preceding ),0)
+nullif(1.0*max(market_artist_spins) over (partition by mediabase_id, station_id, breakout_id order by week_dt ROWS BETWEEN 1 preceding AND 1 preceding ),0)
  as per_diff_market_artist_spins_prior,
 
 (max(market_spins) over (partition by mediabase_id, station_id, breakout_id, week_dt  ) -
 max(market_spins) over (partition by mediabase_id, station_id, breakout_id order by week_dt ROWS BETWEEN 1 preceding AND 1 preceding ))/
-nullif(max(market_spins) over (partition by mediabase_id, station_id, breakout_id order by week_dt ROWS BETWEEN 1 preceding AND 1 preceding ),0)
+nullif(1.0*max(market_spins) over (partition by mediabase_id, station_id, breakout_id order by week_dt ROWS BETWEEN 1 preceding AND 1 preceding ),0)
  as per_diff_market_spins_spins_prior,
 
 
@@ -1019,138 +1035,14 @@ GapFill(mr_pop_artist_prior_unv) over (partition by mediabase_id, station_id, br
 );;
 
 
-CREATE INDEX ON adds_temp.demo_rr_temp_{format_code} (mediabase_id, station_id, breakout_id, week_dt );;
+CREATE INDEX ON adds_temp.demo_rr_temp_{format_code} (mediabase_id, station_id, breakout_id, week_dt )
 
+/*
 --Ignor universal pop statistics when only one callout has been performed
 UPDATE adds_temp.demo_rr_features_{format_code}
 SET mean_pop_prior_unv=NULL,
     max_pop_prior_unv=NULL,
     min_pop_prior_unv=NULL,
     mr_pop_prior_unv=NULL
-WHERE count_pop_prior_unv=1;;
-
--- similar stations
-create table adds_temp.demo_sim_stations_{format_code}
-as
-SELECT
-    (CAST(sst."YearNbr" AS VARCHAR) || '-' ||
-    LPAD(CAST(sst."MonthNbr" AS VARCHAR), 2, '0') || '-01')::date AS start_date,
-    ((CAST(sst."YearNbr" AS VARCHAR) || '-' ||
-    LPAD(CAST(sst."MonthNbr" AS VARCHAR), 2, '0') || '-01')::date +
-    INTERVAL '1 month' - INTERVAL '1 day')::date AS end_date,
-    sst."Stn",
-    s.station_id,
-    sst."SimStn",
-    s_.station_id as sim_station_id
-FROM
-    dbo."SS_SCORE_TOP" AS sst, data.stations as s, data.stations as s_
-WHERE
-    sst."HeatLabel" IN ('A', 'B')
-    AND sst."SimType" = 'cmm-score'
-    AND lower(sst."FormatCode") = '{format_code}'
-    AND s.call_letters  = sst."Stn"
-    AND s_.call_letters = sst."SimStn"
-    AND "YearNbr" >= EXTRACT(year from '{start_date}'::date)
-    AND "MonthNbr" >= EXTRACT(month from '{start_date}'::date);;
-
-CREATE INDEX ON adds_temp.demo_sim_stations_{format_code} (station_id, sim_station_id);;
-
-
--- Similar station and national experience
-
-
-CREATE TABLE adds_temp.demo_smoothed_pop_score_{format_code}
-AS
-WITH callout_research_ts AS
-(
-SELECT
-    rf.mediabase_id,
-    rf.station_id,
-    rf.breakout_id,
-    rf.breakout_name,
-    rf.week_dt,
-    rf.pop_all,
-    rf.total_respondents,
-    rf.pop_co,
-    rf.callout_respondents,
-    rf.pop_omt,
-    rf.omt_respondents
-FROM
-    adds_temp.demo_rr_features_{format_code} AS rf
-WHERE
-    pop_all IS NOT NULL
-),
-all_ts AS
-(
-SELECT
-    rf.mediabase_id,
-    rf.station_id,
-    rf.breakout_id,
-    rf.breakout_name,
-    rf.week_dt,
-    rf.pop_all,
-    rf.total_respondents
-FROM
-    adds_temp.demo_rr_features_h1 AS rf
-)
-SELECT
-    al.mediabase_id,
-    al.station_id,
-    al.breakout_id,
-    al.breakout_name,
-    al.week_dt,
-    al.pop_all,
-    al.total_respondents,
-    count(al.pop_all) OVER (PARTITION BY al.mediabase_id,
-    al.station_id,
-    al.breakout_id
-ORDER BY
-    al.week_dt ROWS BETWEEN 7 PRECEDING AND 0 PRECEDING) AS tests_past_8_weeks,
-    CAST(sum(cr.pop_all * cr.total_respondents)/ sum(cr.total_respondents) AS DECIMAL(5, 2)) AS pop_all_sim_station,
-    sum(cr.total_respondents) as total_respondents_sim_station,
-    CAST(sum(crr.pop_all * crr.total_respondents)/ sum(crr.total_respondents) AS DECIMAL(5, 2)) AS pop_all_format,
-    sum(crr.total_respondents) as total_respondents_format,
-    COALESCE(al.pop_all,
-    CAST(sum(cr.pop_all * cr.total_respondents)/ sum(cr.total_respondents) AS DECIMAL(5, 2)),
-    CAST(sum(crr.pop_all * crr.total_respondents)/ sum(crr.total_respondents) AS DECIMAL(5, 2))) AS pop_composite,
-    COALESCE(al.total_respondents, sum(cr.total_respondents), sum(crr.total_respondents)) as total_respondents_composite,
-    CAST(AVG(COALESCE(al.pop_all,
-    CAST(sum(cr.pop_all * cr.total_respondents)/ sum(cr.total_respondents) AS DECIMAL(5, 2)),
-    CAST(sum(crr.pop_all * crr.total_respondents)/ sum(crr.total_respondents) AS DECIMAL(5, 2)))) OVER (PARTITION BY al.mediabase_id,
-    al.station_id,
-    al.breakout_id
-ORDER BY
-    al.week_dt ROWS BETWEEN 4 PRECEDING AND 0 PRECEDING) AS DECIMAL(5,2)) as smoothed_pop_composite
-
-FROM
-    all_ts AS al
-LEFT JOIN
-adds_temp.demo_sim_stations_{format_code} AS ss
-ON
-    al.station_id = ss.station_id
-    AND al.week_dt >= ss.start_date
-    AND al.week_dt <= ss.end_date
-LEFT JOIN
-callout_research_ts AS cr
-ON
-    ss.sim_station_id = cr.station_id
-    AND al.mediabase_id = cr.mediabase_id
-    AND al.week_dt = cr.week_dt
-    AND al.breakout_id = cr.breakout_id
-LEFT JOIN
-callout_research_ts AS crr
-ON
-    al.station_id <> crr.station_id
-    AND al.mediabase_id = crr.mediabase_id
-    AND al.week_dt = crr.week_dt
-    AND al.breakout_id = crr.breakout_id
-WHERE
-    al.mediabase_id = 2582475 -- Save Your Tears (Weeknd)
-GROUP BY
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-    7
+WHERE count_pop_prior_unv=1
+ */
