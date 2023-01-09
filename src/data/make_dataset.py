@@ -16,6 +16,7 @@ def build_tables(input_filepath, format_code, config_dict, train_score_flag):
     fd = open(input_filepath, 'r')
     sql_file = fd.read()
     fd.close()
+    min_station_tests = config.min_station_tests
     format_code_research = format_code.lower()
     spins_filter = config.spins_filter_format['default']
     c_to_r = config.grc_adj_formats['default']['R']
@@ -37,7 +38,8 @@ def build_tables(input_filepath, format_code, config_dict, train_score_flag):
         .replace('{spins_filter}', str(spins_filter)) \
         .replace('{c_to_r}', c_to_r) \
         .replace('{r_to_g}', r_to_g) \
-        .replace('{format_code_research}', format_code_research)
+        .replace('{format_code_research}', format_code_research)\
+        .replace('{min_station_tests}', str(min_station_tests))
 
     sql_commands = query.split(';;')
     for i, command in enumerate(sql_commands):
@@ -89,5 +91,5 @@ if __name__ == '__main__':
     config_dict = config.config_to_dict(config)
     print(config_dict)
     build_tables(
-        input_filepath=make_input_path(os.getcwd()),
+        input_filepath=make_input_path(config.base_dir),
         format_code=config.format_codes[0].lower(), config_dict=config_dict, train_score_flag='train')
