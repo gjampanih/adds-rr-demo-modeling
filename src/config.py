@@ -78,6 +78,8 @@ grc_adj_formats = {'default': {'R':'12 weeks', 'G':'24 months'},
 #spins filter by format
 spins_filter_format = {'H1':300, 'C1':300, 'default':300}
 model_version = None
+# minimumn station test
+min_station_tests = 2
 #add stations to exclude for different formats to filter rules
 filter_rules = '''and song_weeks_since_last_spins <=13 
 and ((song_last_test_co_weeks <=26) 
@@ -133,7 +135,8 @@ def config_to_dict(module):
                         'env_results', 'tiering_col', 'exclude_cols_like', 'use_local_over_unv',
                         'scoring_notify_enabled', 'scoring_notify_role_arn', 'scoring_notify_host',
                         'scoring_notify_env', 'write_to_dynamo_enabled', 'model_execution_completion_table',
-                        'temp_table_names', 'breakout_category', 'breakout_map', 'low_alpha', 'high_alpha']):
+                        'temp_table_names', 'breakout_category', 'breakout_map', 'low_alpha', 'high_alpha',
+                        'min_station_tests']):
             context[setting] = getattr(module, setting)
 
     return context
