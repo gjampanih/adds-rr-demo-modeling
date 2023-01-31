@@ -1,5 +1,5 @@
 -- noinspection SqlNoDataSourceInspectionForFile
-/*
+
 drop TABLE if exists adds_temp.demo_songs_{format_code} ;;
 drop TABLE if exists adds_temp.demo_song_subset_train_{format_code} ;;
 drop TABLE if exists adds_temp.demo_station_song_subset_train_{format_code};;
@@ -39,7 +39,7 @@ create table adds_temp.demo_song_subset_train_{format_code} as (
 
 select distinct mediabase_id, ds.artist_name, a.artist_id, song_name
 
-from from data.cmm c
+from data.cmm c
 /*
 (
 Select c.cmm_station_calls, c.song_id
@@ -615,7 +615,7 @@ where a1.pop_all < 150
 
 ALTER TABLE adds_temp.demo_cm_{format_code}  ADD PRIMARY KEY ( cmm_station_calls, mediabase_id, breakout_id, week_dt);;
 
-
+/*
 -- Adjusted GCR logic (implemented early 2021)
 create table adds_temp.demo_gcr_{format_code} as
     (select a.mediabase_id,
@@ -668,6 +668,8 @@ create table adds_temp.demo_gcr_{format_code} as
 )
 
 ALTER TABLE adds_temp.demo_gcr_{format_code}   ADD PRIMARY KEY (mediabase_id,week_dt)
+)
+ */
 
 
 -- temp demo table for rr features
@@ -823,7 +825,6 @@ DELETE
 from adds_temp.demo_rr_temp_{format_code} AS drth
 where station_id is null
 ;;
- */
 
 -- final feature table
 create table adds_temp.demo_rr_features_{format_code} as
