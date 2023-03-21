@@ -542,7 +542,7 @@ where test_date >= '{start_date}'
 and breakout_respondents>0 -- this filters out any custom consolidated call-out/OMT
 and (first_spin_thresh_week <= (date_trunc('week', cmm.test_date)::date- '8 day'::interval)::date  or ("GRC"='G' or "GRC" isnull) )
 and (cmm.breakout_name IN ('*Core*', '*Old*', '*Young*',
-    'Total', 'White', 'WAO', 'Hispanic', 'AA', 'AA/Hispanic', 'TOTAL(M)', 'TOTAL(F)', 'Asian')
+    'Total', 'White', 'WAO', 'Hispanic', 'AA', 'AA/Hispanic', 'TOTAL (M)', 'TOTAL (F)', 'Asian')
         OR cmm.breakout_name LIKE 'F (%')
 group by 1,2,3,4,5,6
 
